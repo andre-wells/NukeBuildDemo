@@ -72,7 +72,7 @@
             "type": "string",
             "enum": [
               "Clean",
-              "NotifyOfBuildFail",
+              "NotifyOfResult",
               "Publish",
               "Restore",
               "Test"
@@ -90,7 +90,7 @@
             "type": "string",
             "enum": [
               "Clean",
-              "NotifyOfBuildFail",
+              "NotifyOfResult",
               "Publish",
               "Restore",
               "Test"

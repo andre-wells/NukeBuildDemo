@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Nuke.Common;
 using Nuke.Common.CI;
 using Nuke.Common.Execution;
@@ -17,6 +18,7 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 [CheckBuildProjectConfigurations]
 [ShutdownDotNetAfterServerBuild]
+[NotifyFailure]
 class Build : NukeBuild
 {
     /// Support plugins are available for:
@@ -39,6 +41,7 @@ class Build : NukeBuild
     AbsolutePath OutputDirectory => RootDirectory / "output";
 
     Target Clean => _ => _
+        .Triggers(NotifyOfResult)
         .Before(Restore)
         .Executes(() =>
         {
@@ -87,22 +90,17 @@ class Build : NukeBuild
                 .SetNoRestore(true));
         });
 
-    Target NotifyOfBuildFail => _ => _
-        .AssuredAfterFailure() //always run
-        .TryTriggeredBy<Build>(b => b.Publish, b => b.Test)
-        .Executes(() =>
+
+    Target NotifyOfResult => _ => _
+        .AssuredAfterFailure() //always run        
+        .DependsOn(Publish)
+        .Executes(async () =>
         {
+
+            await Task.Delay(1000);
             Serilog.Log.Fatal("TARGET Oh noes! The build failed!");
+            await Task.Delay(1000);
+            Serilog.Log.Debug("Sample message");                       
 
         });
-    
-
-    protected override void OnBuildFinished() 
-    { 
-        if(!IsSuccessful)
-        {
-            Serilog.Log.Fatal("Oh noes! The build failed!");
-        }
-    }
-
 }
