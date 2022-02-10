@@ -20,9 +20,7 @@ namespace NukeBuildDemo.Tests
         [Test]
         public void GetBinaryString_Compairon_ReturnsResult()
         {
-            var x = BinaryHelper.GetBinaryString(1);
-            var y = BinaryHelper.GetBinaryString(24);
-            Assert.Fail("Well, {0} has gone wrong", "this");
+            //Assert.Fail("Well, {0} has gone wrong", "this");
         }
 
         [TestCase(0,"00000000")]

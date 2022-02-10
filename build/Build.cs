@@ -25,7 +25,7 @@ class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main () => Execute<Build>(x => x.Publish);
+    public static int Main() => Execute<Build>(x => x.Publish);
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
@@ -42,11 +42,6 @@ class Build : NukeBuild
         .Before(Restore)
         .Executes(() =>
         {
-            
-            var b = GitRepository.Branch;
-            var ps = Solution.Projects;
-
-
             SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(DeleteDirectory);
             EnsureCleanDirectory(OutputDirectory);
         });
@@ -82,6 +77,8 @@ class Build : NukeBuild
 
             Serilog.Log.Information("Identified project as {Project}", p.Name);
 
+            Serilog.Log.Information("Publishing with {Configuration}", Configuration);
+
             DotNetPublish(s => s
                 .SetProject(p)
                 .SetConfiguration(Configuration)
@@ -89,5 +86,23 @@ class Build : NukeBuild
                 .SetVersion("1.1.0.0")
                 .SetNoRestore(true));
         });
+
+    Target NotifyOfBuildFail => _ => _
+        .AssuredAfterFailure() //always run
+        .TryTriggeredBy<Build>(b => b.Publish, b => b.Test)
+        .Executes(() =>
+        {
+            Serilog.Log.Fatal("TARGET Oh noes! The build failed!");
+
+        });
+    
+
+    protected override void OnBuildFinished() 
+    { 
+        if(!IsSuccessful)
+        {
+            Serilog.Log.Fatal("Oh noes! The build failed!");
+        }
+    }
 
 }
