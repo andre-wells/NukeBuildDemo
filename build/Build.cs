@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using Nuke.Common;
 using Nuke.Common.CI;
@@ -24,14 +25,15 @@ class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main () => Execute<Build>(x => x.Compile);
+    public static int Main () => Execute<Build>(x => x.Publish);
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
     [Solution] readonly Solution Solution;
     [GitRepository] readonly GitRepository GitRepository;
-    //GitRepository GitRepository => GitRepository.FromLocalDirectory(@"C:\Working\NukeBuildDemo");// SourceDirectory);
+
+    readonly Guid PublishProjectId = new Guid("05f5ac6f-e1c7-40e7-b0b4-ce81b7c42a47");
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath OutputDirectory => RootDirectory / "output";
@@ -40,8 +42,11 @@ class Build : NukeBuild
         .Before(Restore)
         .Executes(() =>
         {
-            //TODO: replace with Git Clean (exclude packages)
+            
             var b = GitRepository.Branch;
+            var ps = Solution.Projects;
+
+
             SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(DeleteDirectory);
             EnsureCleanDirectory(OutputDirectory);
         });
@@ -54,19 +59,35 @@ class Build : NukeBuild
                 .SetProjectFile(Solution));
         }).DependsOn(Clean);
 
-    Target Compile => _ => _
+    Target Test => _ => _
+        .After(Restore)
+        .Executes(() =>
+        {
+            Serilog.Log.Information("Testing");
+
+            DotNetTest(s => s
+                .SetProjectFile(Solution)
+                .SetNoRestore(true));
+
+        });
+
+    Target Publish => _ => _
         .DependsOn(Restore)
+        .DependsOn(Test)
         .Executes(() =>
         {
             Serilog.Log.Information("Compiling");
 
-            DotNetBuild(s => s
-                .SetProjectFile(Solution)
-                .SetConfiguration(Configuration)
-                .EnableNoRestore());
-            //Dotnetpu
-        });
+            var p = Solution.GetProject(PublishProjectId);
 
-    // TODO: Add tests
+            Serilog.Log.Information("Identified project as {Project}", p.Name);
+
+            DotNetPublish(s => s
+                .SetProject(p)
+                .SetConfiguration(Configuration)
+                .SetOutput(OutputDirectory)
+                .SetVersion("1.1.0.0")
+                .SetNoRestore(true));
+        });
 
 }
